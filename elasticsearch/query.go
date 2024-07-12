@@ -11,6 +11,7 @@ import (
 
 	"github.com/aquasecurity/esquery"
 	"github.com/elastic/go-elasticsearch/v8/esutil"
+	"github.com/fiatjaf/eventstore"
 	"github.com/nbd-wtf/go-nostr"
 )
 
@@ -124,7 +125,9 @@ func (ess *ElasticsearchStorage) QueryEvents(ctx context.Context, filter nostr.F
 	if isGetByID(filter) {
 		if evts, err := ess.getByID(filter); err == nil {
 			for _, evt := range evts {
-				ch <- evt
+				if !eventstore.Expired(evt) {
+					ch <- evt
+				}
 			}
 			close(ch)
 		} else {
@@ -168,7 +171,9 @@ func (ess *ElasticsearchStorage) QueryEvents(ctx context.Context, filter nostr.F
 
 	go func() {
 		for _, e := range r.Hits.Hits {
-			ch <- &e.Source.Event
+			if !eventstore.Expired(&e.Source.Event) {
+				ch <- &e.Source.Event
+			}
 		}
 		close(ch)
 	}()

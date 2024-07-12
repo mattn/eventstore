@@ -2,6 +2,7 @@ package slicestore
 
 import (
 	"context"
+	"strconv"
 
 	"github.com/fiatjaf/eventstore"
 	"github.com/nbd-wtf/go-nostr"
@@ -55,7 +56,7 @@ func (b *SliceStore) QueryEvents(ctx context.Context, filter nostr.Filter) (chan
 				break
 			}
 
-			if filter.Matches(event) {
+			if filter.Matches(event) && !eventstore.Expired(event) {
 				ch <- event
 				count++
 			}

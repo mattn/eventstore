@@ -10,6 +10,7 @@ import (
 	"log"
 
 	"github.com/dgraph-io/badger/v4"
+	"github.com/fiatjaf/eventstore"
 	"github.com/nbd-wtf/go-nostr"
 	nostr_binary "github.com/nbd-wtf/go-nostr/binary"
 )
@@ -103,16 +104,18 @@ func (b BadgerBackend) QueryEvents(ctx context.Context, filter nostr.Filter) (ch
 							return err
 						}
 
-						// check if this matches the other filters that were not part of the index
-						if extraFilter == nil || extraFilter.Matches(evt) {
-							select {
-							case q.results <- evt:
-								pulled++
-								if pulled > limit {
+						if !eventstore.Expired(&evt) {
+							// check if this matches the other filters that were not part of the index
+							if extraFilter == nil || extraFilter.Matches(evt) {
+								select {
+								case q.results <- evt:
+									pulled++
+									if pulled > limit {
+										return exit
+									}
+								case <-ctx.Done():
 									return exit
 								}
-							case <-ctx.Done():
-								return exit
 							}
 						}
 

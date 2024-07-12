@@ -86,16 +86,18 @@ func (b *BoltBackend) QueryEvents(ctx context.Context, filter nostr.Filter) (cha
 						return fmt.Errorf("error: %w", err)
 					}
 
-					// check if this matches the other filters that were not part of the index before yielding
-					if extraFilter == nil || extraFilter.Matches(evt) {
-						select {
-						case q.results <- evt:
-							pulled++
-							if pulled > limit {
+					if !eventstore.Expired(&evt) {
+						// check if this matches the other filters that were not part of the index before yielding
+						if extraFilter == nil || extraFilter.Matches(evt) {
+							select {
+							case q.results <- evt:
+								pulled++
+								if pulled > limit {
+									return nil
+								}
+							case <-ctx.Done():
 								return nil
 							}
-						case <-ctx.Done():
-							return nil
 						}
 					}
 				}

@@ -8,6 +8,7 @@ import (
 	"reflect"
 
 	"github.com/aquasecurity/esquery"
+	"github.com/fiatjaf/eventstore"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/opensearch-project/opensearch-go/v4/opensearchapi"
 	"github.com/opensearch-project/opensearch-go/v4/opensearchutil"
@@ -107,7 +108,9 @@ func (oss *OpensearchStorage) QueryEvents(ctx context.Context, filter nostr.Filt
 	if isGetByID(filter) {
 		if evts, err := oss.getByID(filter); err == nil {
 			for _, evt := range evts {
-				ch <- evt
+				if !eventstore.Expired(evt) {
+					ch <- evt
+				}
 			}
 			close(ch)
 			ch = nil
@@ -149,13 +152,15 @@ func (oss *OpensearchStorage) QueryEvents(ctx context.Context, filter nostr.Filt
 					Event nostr.Event `json:"event"`
 				}
 				if err = json.Unmarshal(b, &payload); err == nil {
-					ch <- &payload.Event
+					if !eventstore.Expired(&payload.Event) {
+						ch <- &payload.Event
+					}
 				}
 			}
 		}
 		if ch != nil {
 			close(ch)
-            ch = nil
+			ch = nil
 		}
 	}()
 

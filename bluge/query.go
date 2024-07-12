@@ -8,6 +8,7 @@ import (
 
 	"github.com/blugelabs/bluge"
 	"github.com/blugelabs/bluge/search"
+	"github.com/fiatjaf/eventstore"
 	"github.com/nbd-wtf/go-nostr"
 )
 
@@ -103,7 +104,9 @@ func (b *BlugeBackend) QueryEvents(ctx context.Context, filter nostr.Filter) (ch
 					return false
 				}
 				for evt := range rawch {
-					ch <- evt
+					if !eventstore.Expired(evt) {
+						ch <- evt
+					}
 				}
 				return false
 			})

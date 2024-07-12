@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/fiatjaf/eventstore"
 	"github.com/jmoiron/sqlx"
 	"github.com/nbd-wtf/go-nostr"
 )
@@ -36,8 +37,10 @@ func (b MySQLBackend) QueryEvents(ctx context.Context, filter nostr.Filter) (ch 
 			if err != nil {
 				return
 			}
-			evt.CreatedAt = nostr.Timestamp(timestamp)
-			ch <- &evt
+			if !eventstore.Expired(&evt) {
+				evt.CreatedAt = nostr.Timestamp(timestamp)
+				ch <- &evt
+			}
 		}
 	}()
 

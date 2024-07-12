@@ -10,6 +10,7 @@ import (
 	"log"
 
 	"github.com/PowerDNS/lmdb-go/lmdb"
+	"github.com/fiatjaf/eventstore"
 	"github.com/nbd-wtf/go-nostr"
 	nostr_binary "github.com/nbd-wtf/go-nostr/binary"
 )
@@ -116,16 +117,18 @@ func (b *LMDBBackend) QueryEvents(ctx context.Context, filter nostr.Filter) (cha
 						return fmt.Errorf("error: %w", err)
 					}
 
-					// check if this matches the other filters that were not part of the index before yielding
-					if extraFilter == nil || extraFilter.Matches(evt) {
-						select {
-						case q.results <- evt:
-							pulled++
-							if pulled >= limit {
+					if !eventstore.Expired(evt) {
+						// check if this matches the other filters that were not part of the index before yielding
+						if extraFilter == nil || extraFilter.Matches(evt) {
+							select {
+							case q.results <- evt:
+								pulled++
+								if pulled >= limit {
+									return nil
+								}
+							case <-ctx.Done():
 								return nil
 							}
-						case <-ctx.Done():
-							return nil
 						}
 					}
 
