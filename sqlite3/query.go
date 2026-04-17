@@ -114,20 +114,25 @@ func (b SQLite3Backend) queryEventsSql(filter nostr.Filter, doCount bool) (strin
 	// tags
 	totalTags := 0
 	// we use a very bad implementation in which we only check the tag values and ignore the tag names
-	for _, values := range filter.Tags {
+	for key, values := range filter.Tags {
 		if len(values) == 0 {
 			// any tag set to [] is wrong
 			return "", nil, EmptyTagSet
 		}
 
-		orTag := make([]string, len(values))
+		subTag := make([]string, len(values))
 		for i, tagValue := range values {
-			orTag[i] = `tags LIKE ? ESCAPE '\'`
+			subTag[i] = `tags LIKE ? ESCAPE '\'`
 			params = append(params, `%`+strings.ReplaceAll(tagValue, `%`, `\%`)+`%`)
 		}
 
-		// each separate tag key is an independent condition
-		conditions = append(conditions, "("+strings.Join(orTag, "OR ")+")")
+		// NIP-119: keys beginning with '&' require the event to contain every listed value (AND),
+		// everything else keeps the standard OR semantics.
+		joiner := "OR "
+		if len(key) > 0 && key[0] == '&' {
+			joiner = "AND "
+		}
+		conditions = append(conditions, "("+strings.Join(subTag, joiner)+")")
 
 		totalTags += len(values)
 		if totalTags > b.QueryTagsLimit {

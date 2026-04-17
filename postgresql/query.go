@@ -112,7 +112,7 @@ func (b *PostgresBackend) queryEventsSql(filter nostr.Filter, doCount bool) (str
 	}
 
 	totalTags := 0
-	for _, values := range filter.Tags {
+	for key, values := range filter.Tags {
 		if len(values) == 0 {
 			// any tag set to [] is wrong
 			return "", nil, EmptyTagSet
@@ -128,8 +128,13 @@ func (b *PostgresBackend) queryEventsSql(filter nostr.Filter, doCount bool) (str
 			params = append(params, tagValue)
 		}
 
-		// each separate tag key is an independent condition
-		conditions = append(conditions, `tagvalues && ARRAY[`+makePlaceHolders(len(values))+`]`)
+		// NIP-119: keys beginning with '&' require the event to contain every listed value (AND),
+		// everything else keeps the standard OR semantics.
+		if len(key) > 0 && key[0] == '&' {
+			conditions = append(conditions, `tagvalues @> ARRAY[`+makePlaceHolders(len(values))+`]`)
+		} else {
+			conditions = append(conditions, `tagvalues && ARRAY[`+makePlaceHolders(len(values))+`]`)
+		}
 	}
 
 	if filter.Since != nil {

@@ -148,6 +148,21 @@ func TestQueryEventsSql(t *testing.T) {
 			params: nil,
 			err:    TooManyTagValues,
 		},
+		{
+			name:    "nip-119 and tag filter",
+			backend: defaultBackend,
+			filter: nostr.Filter{
+				Tags: nostr.TagMap{
+					"&t": []string{"meme", "cat"},
+				},
+			},
+			query: `SELECT id, pubkey, created_at, kind, tags, content, sig
+			FROM event
+			WHERE tagvalues @> ARRAY[$1,$2]
+			ORDER BY created_at DESC, id LIMIT $3`,
+			params: []any{"meme", "cat", 100},
+			err:    nil,
+		},
 	}
 
 	for _, tt := range tests {
